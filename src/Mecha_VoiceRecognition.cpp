@@ -1,5 +1,7 @@
 #include "Mecha_VoiceRecognition.h"
 
+#include "key_types.h"
+
 Mecha_VoiceRecognition::Mecha_VoiceRecognition(SoftwareSerial *uart_voice) {
     _uart_voice = uart_voice;
     _group = VOICE_GROUP_1;
