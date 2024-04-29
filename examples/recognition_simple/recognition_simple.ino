@@ -18,9 +18,18 @@ void setup() {
   
   voice.setDebugOn(&Serial);
   voice.setGroup(VOICE_GROUP_1);
-  voice.init();
 
-  voice.setMode(VOICE_MODE_RECOGNITION);
+  if (voice.init() == false) {
+    while (true) {
+      ;
+    }
+  }
+
+  if (voice.setMode(VOICE_MODE_RECOGNITION) == false) {
+    while (true) {
+      ;
+    }
+  }
 }
 
 void loop() {
