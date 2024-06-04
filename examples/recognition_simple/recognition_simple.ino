@@ -2,8 +2,8 @@
  * @file recognition_simple.ino
  * @author Mechasolution Tech Support Team (techms5499@gmail.com)
  * @brief simple recognition example
- * @version 0.1
- * @date 2024-05-02
+ * @version 0.2
+ * @date 2024-06-04
  *
  * @copyright Copyright (c) 2024 Mechasolution (https://mechasolution.com)
  *
@@ -18,7 +18,7 @@
 #define PIN_LED_RED 6
 
 SoftwareSerial uart_voice(2, 3);
-Mecha_VoiceRecognition voice(&uart_voice);
+Mecha_VoiceRecognition voice(uart_voice);
 
 void setup() {
   pinMode(PIN_LED_GREEN, OUTPUT);
@@ -26,11 +26,12 @@ void setup() {
   pinMode(PIN_LED_RED, OUTPUT);
 
   Serial.begin(9600);
+  uart_voice.begin(9600);
 
-  voice.setDebugOn(&Serial);
+  voice.setDebugOn(Serial);
   voice.setGroup(VOICE_GROUP_1);
 
-  if (voice.init() == false) {
+  if (voice.begin() == false) {
     while (true) {
       ;
     }
