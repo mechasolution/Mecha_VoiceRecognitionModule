@@ -12,6 +12,10 @@ void Mecha_VoiceRecognition::_flushRxBuffer() {
     _uart_voice->read();
 }
 
+int Mecha_VoiceRecognition::_getRxResponseCnt() {
+  return _uart_voice->available();
+}
+
 int Mecha_VoiceRecognition::_getRxResponse() {
   unsigned long start_time = millis();
   int rxData = 0;
@@ -33,52 +37,50 @@ int Mecha_VoiceRecognition::_getRxResponse() {
 void Mecha_VoiceRecognition::_sendCommand(int data) {
   _uart_voice->write(VOICE_TRANSMIT_COMMAND_HEAD);
   _uart_voice->write(data);
+
+  // delay(100);
 }
 
 int Mecha_VoiceRecognition::_sendCommandAndWaitSUccessResponse(int data) {
-  _flushRxBuffer();
   int ret;
 
-  for (int i = 0; i < 5; i++) {
-    _uart_voice->write(VOICE_TRANSMIT_COMMAND_HEAD);
-    _uart_voice->write(data);
+  _sendCommand(data);
 
-    ret = _getRxResponse();
-    if (ret == VOICE_RESPONSE_SUCCESS) {
-      return ret;
-    } else if (ret == VOICE_RESPONSE_ERROR_TIMEOUT) {
-      _DEBUG("Voice Recognition Debug - Command Failed. Retry after 100ms");
-      delay(100);
-    } else {
-      return ret;
-    }
+  ret = _getRxResponse();
+  if (ret == VOICE_RESPONSE_SUCCESS) {
+    return ret;
+  } else if (ret == VOICE_RESPONSE_ERROR_TIMEOUT) {
+    _DEBUG("Voice Recognition Debug - Command failed");
   }
-  return VOICE_RESPONSE_ERROR_TIMEOUT;
+
+  return ret;
 }
 
 bool Mecha_VoiceRecognition::init() {
   _uart_voice->begin(9600);
 
-  while (!_uart_voice) {
-    delay(100);
-  }
-
+  // The module does not seem to work when the UART rail is not pulled up.
+  // Therefore, you should wait around 1 second after enabling UART.
   delay(1000);
 
-  bool ret = true;
-
-  ret = _sendCommandAndWaitSUccessResponse(VOICE_TRANSMIT_WAITING) == VOICE_RESPONSE_SUCCESS;
-  if (ret != true) {
-    _DEBUG("Voice Recognition Debug - INIT ERROR 1");
+  _sendCommand(VOICE_TRANSMIT_WAITING);
+  int ret = _getRxResponse();
+  if (ret == VOICE_RESPONSE_ERROR_TIMEOUT) {
+    _DEBUG("Voice Recognition Debug - Init failed");
     return false;
-  }
-  ret = _sendCommandAndWaitSUccessResponse(VOICE_TRANSMIT_SWITCH_COMPACT) == VOICE_RESPONSE_SUCCESS;
-  if (ret != true) {
-    _DEBUG("Voice Recognition Debug - INIT ERROR 2");
-    return false;
+  } else if (_getRxResponseCnt() != 0) {
+    // The default response mode is "Common Mode".
+    // In this case, flush all UART buffers and change it to "Compact Mode".
+    _flushRxBuffer();
+    _sendCommand(VOICE_TRANSMIT_SWITCH_COMPACT);
+
+    // Even after the mode has changed once, responses may still occur in the "Common Mode".
+    _getRxResponse();
+    _flushRxBuffer();
   }
 
-  _DEBUG("Voice Recognition Debug - INIT SUCCESS");
+  _DEBUG("Voice Recognition Debug - Init sucess");
+
   return true;
 }
 
@@ -112,6 +114,7 @@ VOICE_InstructionTypeDef Mecha_VoiceRecognition::getInstruction() {
     return VOICE_INSTRUCTION_ERROR;
   }
 }
+
 VOICE_GroupTypeDef Mecha_VoiceRecognition::getGroup() {
   return _group;
 }
@@ -163,7 +166,6 @@ void Mecha_VoiceRecognition::_DEBUG(const char *message) {
 bool Mecha_VoiceRecognition::_record() {
   int i = 1;
   char buff[100];
-  bool need_to_off_debug = false;
 
   bool ret = false;
 

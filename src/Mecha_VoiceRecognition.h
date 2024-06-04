@@ -47,6 +47,7 @@ private:
   void _DEBUG(const char *message);
 
   void _flushRxBuffer();
+  int _getRxResponseCnt();
   int _getRxResponse();
   void _sendCommand(int data);
   int _sendCommandAndWaitSUccessResponse(int data);
