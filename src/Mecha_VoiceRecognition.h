@@ -2,7 +2,6 @@
 #define SRC_MECHA_VOICERECOGNITION
 
 #include <Arduino.h>
-#include <SoftwareSerial.h>
 
 // mode enum
 typedef enum {
@@ -31,11 +30,11 @@ typedef enum {
 
 class Mecha_VoiceRecognition {
 public:
-  Mecha_VoiceRecognition(SoftwareSerial *uart_voice);
-  bool init();
+  Mecha_VoiceRecognition(Stream &uart_voice);
+  bool begin();
 
   void setGroup(VOICE_GroupTypeDef group);
-  void setDebugOn(HardwareSerial *uart_debug);
+  void setDebugOn(Stream &uart_debug);
   void setDebugOff();
   bool setMode(VOICE_ModeTypeDef mode);
 
@@ -54,8 +53,8 @@ private:
 
   bool _record();
   bool _import();
-  SoftwareSerial *_uart_voice;
-  HardwareSerial *_uart_debug;
+  Stream *_uart_voice;
+  Stream *_uart_debug;
   VOICE_GroupTypeDef _group;
 
   bool _isDebugOn = false;

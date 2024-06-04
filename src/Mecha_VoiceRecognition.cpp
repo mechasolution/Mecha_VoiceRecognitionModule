@@ -2,8 +2,8 @@
 
 #include "key_types.h"
 
-Mecha_VoiceRecognition::Mecha_VoiceRecognition(SoftwareSerial *uart_voice) {
-  _uart_voice = uart_voice;
+Mecha_VoiceRecognition::Mecha_VoiceRecognition(Stream &uart_voice) {
+  _uart_voice = &uart_voice;
   _group = VOICE_GROUP_1;
 }
 
@@ -56,9 +56,7 @@ int Mecha_VoiceRecognition::_sendCommandAndWaitSUccessResponse(int data) {
   return ret;
 }
 
-bool Mecha_VoiceRecognition::init() {
-  _uart_voice->begin(9600);
-
+bool Mecha_VoiceRecognition::begin() {
   // The module does not seem to work when the UART rail is not pulled up.
   // Therefore, it should wait around 1 second after enabling UART.
   delay(1000);
@@ -128,8 +126,8 @@ void Mecha_VoiceRecognition::setGroup(VOICE_GroupTypeDef group) {
   _DEBUG(buff);
 }
 
-void Mecha_VoiceRecognition::setDebugOn(HardwareSerial *uart_debug) {
-  _uart_debug = uart_debug;
+void Mecha_VoiceRecognition::setDebugOn(Stream &uart_debug) {
+  _uart_debug = &uart_debug;
   _isDebugOn = true;
   _DEBUG("Voice Recognition Debug - Set serial debug on");
 }
