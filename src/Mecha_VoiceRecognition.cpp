@@ -21,11 +21,12 @@ int Mecha_VoiceRecognition::_getRxResponse() {
   int rxData = 0;
   bool isReceive = false;
   while (true) {
-    if (start_time + 1000 <= millis())
+    if (start_time + 2000 <= millis())
       break;
     if (_uart_voice->available()) {
       isReceive = true;
       rxData = _uart_voice->read();
+      break;
     }
   }
   if (isReceive == true)
@@ -37,20 +38,19 @@ int Mecha_VoiceRecognition::_getRxResponse() {
 void Mecha_VoiceRecognition::_sendCommand(int data) {
   _uart_voice->write(VOICE_TRANSMIT_COMMAND_HEAD);
   _uart_voice->write(data);
-
-  // delay(100);
 }
 
 int Mecha_VoiceRecognition::_sendCommandAndWaitSUccessResponse(int data) {
   int ret;
 
-  _sendCommand(data);
+  // Because of unstable behavior, repeat same command 3 times.
+  for (int i = 0; i < 3; i++) {
+    _sendCommand(data);
 
-  ret = _getRxResponse();
-  if (ret == VOICE_RESPONSE_SUCCESS) {
-    return ret;
-  } else if (ret == VOICE_RESPONSE_ERROR_TIMEOUT) {
-    _DEBUG("Voice Recognition Debug - Command failed");
+    ret = _getRxResponse();
+    if (ret == VOICE_RESPONSE_SUCCESS) {
+      return ret;
+    }
   }
 
   return ret;
@@ -60,22 +60,24 @@ bool Mecha_VoiceRecognition::init() {
   _uart_voice->begin(9600);
 
   // The module does not seem to work when the UART rail is not pulled up.
-  // Therefore, you should wait around 1 second after enabling UART.
+  // Therefore, it should wait around 1 second after enabling UART.
   delay(1000);
 
   _sendCommand(VOICE_TRANSMIT_WAITING);
   int ret = _getRxResponse();
+  delay(500); // Common Mode's each character period is too slow..
+
   if (ret == VOICE_RESPONSE_ERROR_TIMEOUT) {
     _DEBUG("Voice Recognition Debug - Init failed");
     return false;
-  } else if (_getRxResponseCnt() != 0) {
-    // The default response mode is "Common Mode".
-    // In this case, flush all UART buffers and change it to "Compact Mode".
-    _flushRxBuffer();
+  } else if (_getRxResponseCnt() > 0) {
+    _DEBUG("Voice Recognition Debug - First use, changing to compact mode..");
+    // The default response mode is "Common Mode". In this case, change it to "Compact Mode".
     _sendCommand(VOICE_TRANSMIT_SWITCH_COMPACT);
 
-    // Even after the mode has changed once, responses may still occur in the "Common Mode".
+    // After the mode has changed once, responses may still occur in the "Common Mode".
     _getRxResponse();
+    delay(1000);
     _flushRxBuffer();
   }
 
@@ -172,20 +174,29 @@ bool Mecha_VoiceRecognition::_record() {
   switch (_group) {
   case VOICE_GROUP_1:
     ret = _sendCommandAndWaitSUccessResponse(VOICE_TRANSMIT_DELETE_G1) == VOICE_RESPONSE_SUCCESS;
-    _sendCommand(VOICE_TRANSMIT_RECORD_G1);
     break;
   case VOICE_GROUP_2:
     ret = _sendCommandAndWaitSUccessResponse(VOICE_TRANSMIT_DELETE_G2) == VOICE_RESPONSE_SUCCESS;
-    _sendCommand(VOICE_TRANSMIT_RECORD_G2);
     break;
   case VOICE_GROUP_3:
     ret = _sendCommandAndWaitSUccessResponse(VOICE_TRANSMIT_DELETE_G3) == VOICE_RESPONSE_SUCCESS;
-    _sendCommand(VOICE_TRANSMIT_RECORD_G3);
     break;
   }
 
   if (ret == false) {
     return false;
+  }
+
+  switch (_group) {
+  case VOICE_GROUP_1:
+    _sendCommand(VOICE_TRANSMIT_RECORD_G1);
+    break;
+  case VOICE_GROUP_2:
+    _sendCommand(VOICE_TRANSMIT_RECORD_G2);
+    break;
+  case VOICE_GROUP_3:
+    _sendCommand(VOICE_TRANSMIT_RECORD_G3);
+    break;
   }
 
   sprintf(buff, "Starts recording group %d", _group);
@@ -194,7 +205,7 @@ bool Mecha_VoiceRecognition::_record() {
     int response = -1;
     bool isFinish = false;
 
-    if (_uart_voice->available()) {
+    if (_getRxResponseCnt()) {
       response = _uart_voice->read();
     }
     switch (response) {
